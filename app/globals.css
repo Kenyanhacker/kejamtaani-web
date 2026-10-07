@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+:root {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+body {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.noscroll {
+  scrollbar-width: none;
+}
+
+.noscroll::-webkit-scrollbar {
+  display: none;
+}
+
+.keja-map-pin {
+  border: 0;
+  background: transparent;
+}
+
+.keja-map-pin span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  background: #047857;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 35%);
+  transform: rotate(-45deg);
+}

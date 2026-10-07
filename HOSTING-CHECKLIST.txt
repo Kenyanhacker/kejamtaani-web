@@ -1,0 +1,288 @@
+KEJA MTAANI - HOSTING AND LAUNCH CHECKLIST
+Review date: 2026-10-07
+Launch decision: NOT READY FOR A PUBLIC LAUNCH
+
+This is a practical setup guide, not a promise that a deployment is production-ready.
+Complete every STOP item below before inviting the public or accepting listings.
+
+WHAT IS IN THE PROJECT NOW
+--------------------------
+- Next.js application with published-only property search and free-browsing/free-viewing messaging.
+- Supabase email/password and Google sign-in/sign-up flows for tenant and landlord roles.
+- Draft `/privacy`, `/terms`, and `/retention` pages; footer links and unchecked signup policy acknowledgement.
+- A database-side policy-acceptance audit table/trigger is defined in `docs/schema.sql` but still needs a backed-up, live Supabase application and test.
+- Landlord availability choices for Available, Soon available, and Taken; public search excludes Taken homes.
+- Landlord content edits return published submissions to review; soon-available date and last-confirmed timestamp are available.
+- Authenticated tenant viewing-request/report flows, landlord request management, saved-search filters, and account data export/privacy request endpoints are implemented.
+- Basic uptime probe exists at `/api/health`; no external monitoring or notification provider is configured.
+- Authenticated tenant and landlord dashboard routes.
+- Secure-cookie options: production auth cookies are HttpOnly, Secure, SameSite=Lax.
+- Database schema template for profiles, listings, viewing requests, and listing interactions.
+- Signed-in property activity logging, with participant-only row policies and an account rate limit.
+- OpenStreetMap click-to-select map pins, 2/5/10 km nearby search, approximate public
+  listing pins, and database-side radius filtering (not yet tested against live Supabase).
+- Customer care phone and WhatsApp link: 0758 934 463 / +254 758 934 463.
+- Wizard drafts are account-scoped and local; submitted listings and compressed photos are stored in Supabase and remain private pending review.
+- M-Pesa is deliberately disabled. The app must not claim a payment succeeded.
+- Clean `npm ci`, `npm audit` (zero advisories), `npx tsc --noEmit`, and `npm run build`
+  completed after stopping the existing local Next.js server.
+- Public/auth setup pages and the unauthenticated dashboard redirect passed smoke checks.
+
+STOP: LAUNCH-BLOCKING ITEMS FOUND IN THE WEBSITE REVIEW
+------------------------------------------------------
+1. Listing persistence, photo upload, availability controls, deletion of unpublished
+   listings, and a publication-review gate are implemented but not live-tested. Apply and
+   test the latest schema with separate tenant, landlord, and administrator accounts.
+2. Interaction rows are accepted only for published, non-demo database listings. Confirm
+   every listing has the correct landlord_id and test tenant/landlord history under RLS.
+3. Demo homes, caretaker details, verification badges, photos, reviews, and availability
+   must be replaced with verified, consented production data. Do not present sample
+   caretaker contact information or generated photos as genuine.
+4. Password recovery is implemented but untested against production email/redirect settings.
+   Account export is implemented; deletion requests are manual only and do not delete accounts.
+5. Privacy/terms/retention pages and a signup acknowledgement now exist, but are drafts:
+   the full postal address and named incident lead are missing, email processor
+   configuration needs confirmation, and Kenyan
+   privacy/legal review is outstanding. Retention periods are targets only; the maintenance
+   function is not scheduled and does not purge Storage images or inactive accounts. Do not collect production data
+   until these items are resolved.
+6. The new policy-acceptance audit table/trigger in the migration has not been applied
+   or tested against the live Supabase project. Back up first, apply the reviewed migration,
+   and verify password and Google account acceptance records before launch.
+7. Saved searches do not send email alerts. Viewing requests are stored for the tenant and
+   landlord but do not send email/SMS notifications. Listing reports have no in-app staff
+   queue; authorized staff must review them in Supabase with a documented procedure.
+8. The supplied Supabase project and local auth setup have not been fully production-tested;
+   confirm its Google OAuth, production SMTP sender, public domain, monitoring, and backup
+   configuration before launch.
+9. Supabase Storage upload and image-approval gating are implemented. Verify the bucket,
+   MIME/size controls, Storage RLS, direct-object access, cleanup, and moderation workflow.
+   Never upload identity documents or sensitive personal photos to this bucket.
+
+RECOMMENDED HOSTING SHAPE
+-------------------------
+- Web app: Vercel (connect a Git repository; this workspace is not currently a Git repo).
+- Database and authentication: Supabase project in an appropriate region.
+- Domain/DNS: a domain you control, with HTTPS enabled by the hosting provider.
+- Email: a production transactional SMTP provider configured through Supabase Auth.
+- Maps: OpenStreetMap raster tiles with visible attribution; review the tile usage policy
+  and use a compliant hosted tile provider if expected traffic exceeds the public service's
+  permitted usage. No Google Maps API key is required.
+- Images: private Supabase Storage bucket `listing-photos`, WebP-only uploads up to 2 MB,
+  owner-scoped upload/delete policies, random object names, signed image delivery, and
+  database approval gating. Do not upload identity documents or expose service-role
+  secrets in browser-visible variables.
+- Monitoring: hosting error logs, Supabase database/auth monitoring, uptime alert, backups,
+  and a named person who responds to alerts.
+- Basic uptime URL: `https://YOUR_DOMAIN/api/health`. This only confirms the web process is
+  responding; it does not test Supabase, email, or storage.
+
+A provider's free tier, storage/egress limits, backup retention, region availability, and
+terms can change. Check current provider limits and costs before selecting a plan.
+
+1. CLEAN LOCAL INSTALL AND BUILD
+-------------------------------
+1. If the development server is using this workspace, stop it from the terminal/session
+   that started it before replacing dependencies. Do not terminate an unrelated process.
+2. From the project root, run:
+
+      npm ci
+      npm audit
+      npm run build
+
+3. Do not deploy if npm ci, npm audit, or npm run build fails. Record the complete error,
+   fix it, and rerun all three commands.
+4. Start a local production server with `npm run start` and perform the smoke tests below.
+5. Commit package.json and package-lock.json together only after a clean install and build.
+   Never deploy with a lockfile that has not been tested by npm ci.
+
+2. CREATE AND CONFIGURE SUPABASE
+--------------------------------
+1. Create a Supabase project; choose a region appropriate for your users and review its
+   privacy, backup, recovery, compute, storage, and billing settings.
+2. Back up the project, then apply reviewed SQL: use `docs/schema.sql` only for a fresh
+   project; use `supabase/migrations/202610070001_launch_workflows.sql` for the existing
+   project that already has the prior baseline schema. Test on staging first and confirm
+   the migration finishes without errors.
+3. In Table Editor/API settings, verify Row Level Security is enabled on profiles, listings,
+   listing_images, viewing_requests, listing_reports, and listing_interactions.
+4. Create test tenant and landlord accounts. Confirm each receives exactly one profile
+   row and that a user cannot read or change another user's profile or interaction rows.
+5. Test database policies with tenant, landlord, and unauthenticated sessions. Verify a
+   landlord cannot modify another landlord's listing and a tenant cannot see another
+   tenant's activity. Do not use the Supabase service-role key in this Next.js app.
+6. Keep database backups enabled and test a restore procedure before launch. Apply schema
+   changes later as versioned migrations and take backups before migrations.
+
+3. CONFIGURE EMAIL AND GOOGLE SIGN-IN
+-------------------------------------
+1. Copy `.env.example` to `.env.local` for local development. Set:
+
+      NEXT_PUBLIC_APP_URL=http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+
+   These two Supabase client settings are public identifiers/keys; database access must
+   still be protected by RLS. Never add a service_role key or database password to code.
+2. In Supabase Auth, set the local Site URL and allow-list
+   `http://localhost:3000/auth/callback` and `http://localhost:3000/auth/reset`.
+3. Configure Google OAuth in Google Cloud Console. Set the Google OAuth callback/redirect
+   URI to the exact Supabase Auth callback shown by the Supabase Google provider settings
+   (normally `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`). Add the Google
+   client ID/secret only in the Supabase provider settings.
+4. In Google OAuth, configure the production app name, support email, authorized origins,
+   and privacy/terms URLs. Test both first-time sign-up and returning-user sign-in.
+5. Configure a production SMTP sender in Supabase Auth. Set SPF, DKIM, and DMARC for the
+   sending domain; test confirmation and password-recovery emails, spam placement, expiry,
+   one-use links, and resend behaviour.
+6. Add production Site URL and exact redirect allow-list entries, for example
+   `https://YOUR_DOMAIN/auth/callback`. Remove obsolete preview URLs when no longer needed.
+7. Test that selecting Landlord creates a landlord profile, selecting Tenant creates a
+   tenant profile, existing Google accounts keep their original role, and unauthenticated
+   users cannot access either dashboard.
+
+4. CONFIGURE VERCEL AND DOMAIN
+-----------------------------
+1. Put the reviewed source in a private GitHub repository and push the tested branch. The
+   current workspace has no Git repository configured yet.
+2. Import that repository into Vercel; use the Next.js framework preset and the default
+   install/build commands (`npm ci` and `npm run build`).
+3. In Vercel project settings, add production environment variables:
+
+      NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN
+      NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+
+   Add them separately to Preview only if preview redirect URLs and test data are also
+   configured. Never expose private provider secrets as NEXT_PUBLIC variables.
+4. Deploy a preview first. Complete all smoke tests below against the preview and test
+   database. Promote to production only after launch blockers are closed.
+5. Add the custom domain in Vercel, configure the exact DNS records it provides, wait for
+   HTTPS certificate issuance, and verify apex/www redirects and renewal.
+6. Set NEXT_PUBLIC_APP_URL to the canonical HTTPS URL in Production and redeploy.
+7. Update Supabase Auth Site URL and Google/Supabase/Vercel callback allow-lists to the
+   canonical HTTPS domain. Do not allow broad wildcard production redirects.
+8. Test refresh, sign-out, expired sessions, direct dashboard URLs, recovery, and account creation
+   over HTTPS. Confirm auth response cookies include HttpOnly, Secure and SameSite=Lax.
+
+5. REQUIRED PRODUCT WORK BEFORE GO-LIVE
+--------------------------------------
+- Live-test database-backed create, owner-isolated dashboard queries, availability updates,
+  removal of unpublished listings, and the publication-review trigger.
+- Establish a staffed moderation workflow. The database keeps owner submissions and their
+  photos out of public search until authorized staff approve them; no in-app review queue
+  exists.
+- Live-test the Supabase Storage bucket, WebP signature/size checks, owner-scoped policies,
+  image approval gating, and cleanup on deletion. Do not upload identity documents.
+- Associate WhatsApp, call, view, and viewing-request events with the actual database
+  listing and owner. Verify tenant and landlord views separately with two test accounts.
+- Implement and test account deletion/export and scheduled interaction/listing/request
+  retention cleanup. Account export and manual privacy-request submission now exist, but
+  account deletion is not automatic. The SQL maintenance function needs a scheduler,
+  storage cleanup worker, and a safe inactive-account policy. The `/retention` schedule is
+  not fully automated.
+- Confirm the legal operator name, full postal address, named incident-response lead, and
+  the actual email delivery processor; review `/privacy` and `/terms` with qualified counsel.
+- Verify all caretaker/landlord phone numbers and listing ownership; remove fake/demo
+  verification badges and sample testimonials.
+- Viewing requests now persist with server validation, daily rate limiting, owner/tenant
+  status controls, and cancellation. Add and test email/SMS notification, response timing,
+  confirmation, and cancellation messaging before launch.
+- Listing report submissions are stored with tenant-only insert rules and daily limits;
+  build a staffed review queue or document SQL-based report handling.
+- The first numbered SQL migration is provided; establish an automated migration runner and
+  automated end-to-end/RLS tests before routine production releases.
+- Decide who monitors and answers customer care at 0758 934 463, support hours, and what
+  happens if the phone/WhatsApp number changes. Test both tap-to-call and WhatsApp.
+- Add recovery and alerting for failed database/email/auth requests. Confirm no route
+  reports success if persistence failed.
+- Keep the disabled M-Pesa endpoint disabled until a separately tested real integration,
+  signed callbacks, reconciliation, receipts, and refund/dispute process exist.
+
+MANUAL MODERATION PROCEDURE (UNTIL AN IN-APP QUEUE EXISTS)
+---------------------------------------------------------
+1. Restrict Supabase project/SQL-editor access to named staff with MFA; never grant
+   moderation access to landlords or tenants.
+2. Inspect the pending listing, confirm landlord identity/ownership and consent, verify
+   property details and photos, and reject suspicious or misleading submissions.
+3. Only after approval, run a reviewed SQL transaction as a database administrator,
+   replacing the UUID with the verified listing ID:
+
+      BEGIN;
+      UPDATE public.listing_images
+        SET is_approved = true
+        WHERE listing_id = 'LISTING_UUID';
+      UPDATE public.listings
+        SET current_status = 'published',
+            published_at = NOW(),
+            updated_at = NOW()
+        WHERE id = 'LISTING_UUID'
+          AND current_status = 'pending_review'
+          AND is_demo = false;
+      COMMIT;
+
+4. Verify exactly the intended listing was updated and that its public detail page and
+   signed images work. If approval fails, ROLLBACK and investigate; do not use a landlord
+   account to publish.
+
+6. SMOKE TESTS
+--------------
+[ ] Home/search loads on desktop and a real mobile device; empty state and filters work.
+[ ] Select map points around Nairobi and confirm 2 km, 5 km, and 10 km filters return only
+    coordinate-bearing homes inside the chosen radius, with stable server-side pagination.
+[ ] Landlord sets/adjusts the listing map pin, submits, and verifies public map pins are
+    approximate while the search radius uses stored coordinates.
+[ ] Tenant can register by email, confirm email, sign in/out, and use Google sign-in.
+[ ] Landlord can register by email and Google; correct dashboard role is assigned.
+[ ] Request a password reset, use the one-time link, change the password, and verify its
+    token/code is removed from the browser URL after the exchange.
+[ ] Landlord submits a listing; compressed photos appear in their dashboard, and unrelated
+    accounts cannot read the pending row or its image metadata.
+[ ] Pending listings/photos are absent from public search and detail pages; only an
+    administrator can approve/publish. Occupied listings do not appear in search.
+[ ] Landlord can update availability and remove an unpublished listing; published listings
+    cannot be removed through the landlord endpoint.
+[ ] Landlord edits to published content reset publication to pending review and unapprove
+    images; tenant search/details hide it until a moderator approves it again.
+[ ] Landlord can set Available, Soon available, and Taken; tenant search shows the first two
+    statuses accurately and excludes Taken listings.
+[ ] Signed-in navigation shows Sign out and does not show the listing-creation entry to tenants.
+[ ] Signup policy acceptance is unchecked by default, required on account creation, and
+    marketing opt-in remains optional and separate.
+[ ] Supabase records the accepted policy versions and marketing choice for email and Google
+    signup; tenant accounts cannot read or alter the audit records.
+[ ] Wrong-role and logged-out users cannot access landlord/tenant dashboards directly.
+[ ] A tenant views a published listing and uses WhatsApp/call/viewing actions; the account
+    history records only the intended events.
+[ ] The listing owner can see only events for their own published listings.
+[ ] A second unrelated account cannot view those events or change that listing.
+[ ] Sign-up with an unconfirmed/expired email link gives a safe recovery path.
+[ ] Customer-care tel and WhatsApp links reach 0758 934 463 / +254758934463.
+[ ] Tenant viewing requests are visible only to the tenant and the relevant landlord; status
+     changes, cancellation, rate limits, and contact details are tested.
+[ ] Listing reports are rate-limited, persisted, and reviewed by the designated moderator.
+[ ] Export endpoint returns only the signed-in user’s accessible data under RLS.
+[ ] Scheduled retention, including Storage object removal, has run successfully in staging.
+[ ] External uptime monitoring checks `/api/health` and separate Supabase/email health, and
+     alerts reach the named on-call owner.
+[ ] No M-Pesa or deposit flow shows a fake success state; all fees/messages are accurate.
+[ ] No sample/demo property, phone, photo, review, or verification claim is mistaken for
+    real. Check public pages and social previews.
+[ ] Error monitoring receives a controlled test error; database backup and restore are
+    tested; rollback to the last known-good deployment is documented.
+
+7. GO-LIVE AND ONGOING OPERATIONS
+---------------------------------
+1. Close all STOP items. Have a second person review production RLS and OAuth settings.
+2. Confirm legal/privacy notices, data retention, contact/support responsibilities, and
+   Kenyan data-protection obligations with qualified counsel.
+3. Run `npm ci`, `npm audit`, `npm run build`, and the complete smoke-test list on the
+   exact source commit intended for production.
+4. Deploy to a preview, approve it, then promote. Keep M-Pesa disabled and free-launch
+   settings unchanged unless payment integration receives a separate release approval.
+5. Verify production auth, database, domain, email and customer care immediately after
+   launch. Watch logs and error/availability alerts for the first day.
+6. Keep a rollback deployment and tested database backups. For schema changes, back up,
+   migrate, verify, then deploy; do not make ad hoc production table edits.
+7. Review access logs and interaction data only for the documented purpose. Apply retention
+   and deletion requests, restrict staff access, and rotate credentials on exposure.

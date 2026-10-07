@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/auth/layout,_N_T_/auth/reset/layout,_N_T_/auth/reset/page,_N_T_/auth/reset"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/7c07e9a84f050076685c5aff504f065ae60c78eb0ffc220f3e59cf7f76f185f9/$/auth/reset",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/auth/reset/page"
+    },
+    "isFallback": false
+  }
+}

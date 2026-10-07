@@ -1,0 +1,65 @@
+KEJA MTAANI - 30 COMPLETED IMPROVEMENTS
+=======================================
+
+SEARCH AND RENTAL DISCOVERY
+---------------------------
+01. Removed hardcoded/sample rental cards from public search.
+02. Read search results only from published, non-demo Supabase listings.
+03. Derive neighborhood filter options from actual published listings.
+04. Sanitize and length-limit user-entered search text.
+05. Keep home type, neighborhood, water, and gated filters in the search flow.
+06. Improve the constrained dual-thumb rent range slider.
+07. Add recently-added, lowest-rent, and highest-rent sorting.
+08. Add stable secondary ordering so listings do not jump between pages.
+09. Replace the one-page result cap with server-side 24-item pagination.
+10. Show exact result counts and preserve current filters between result pages.
+11. Prevent personalized saved-listing ID searches from being edge-cached.
+12. Explain setup-required and no-match states, with a clear way to reset filters.
+13. Keep saved-property IDs persistent on the user's device.
+14. Hide occupied homes from public results and label homes under negotiation.
+
+LISTING CREATION AND LANDLORD MANAGEMENT
+----------------------------------------
+15. Keep the five-step listing wizard and local draft autosave.
+16. Persist listing details, coordinates, amenities, deposit rules, and tour links.
+17. Validate listing payload size, required text, unit types, rent, coordinates,
+    availability, tour URL, image paths, and amenities on the server.
+18. Require an authenticated landlord profile before accepting listing submissions.
+19. Save submitted listings to Supabase with a pending-review state.
+20. Compress listing photos to WebP before upload.
+21. Upload photos through authenticated server routes using HttpOnly sessions.
+22. Enforce a 2 MB maximum, WebP MIME type, and WebP file signature.
+23. Use random user/listing-scoped object names, private storage, and owner-scoped policies.
+24. Keep listing-image rows unapproved until a moderator approves them.
+25. Block landlord self-publication in the database and provide a database-backed
+    dashboard for listing status and availability.
+26. Allow landlords to update availability and remove only unpublished listings.
+27. Let landlords publish availability as Available, Soon available, or Taken; show tenant-visible status and hide Taken homes from search.
+
+ACCOUNT, ACTIVITY, AND EXPERIENCE
+---------------------------------
+27. Add password recovery with a non-enumerating email response and server-managed
+    recovery session exchange.
+28. Distinguish landlord lead events from the signed-in user's own interaction history.
+29. Add responsive mobile quick navigation and a keyboard-accessible skip link.
+30. Add Open Graph/Twitter metadata, baseline browser security headers, and launch guidance.
+
+LAUNCH GATES THAT STILL REQUIRE THE SITE OWNER
+----------------------------------------------
+- Supply and test a live Supabase project, Google OAuth, production SMTP, and domain.
+- Apply and review docs/schema.sql; test RLS, Storage, recovery, search, listing
+  submission, moderation, and tenant/landlord interaction history with separate accounts.
+- Establish an authorized, staffed moderation process. No in-app moderation queue exists.
+- Review and finalize draft privacy/terms/retention notices; implement scheduled cleanup and account export/deletion.
+- Set up monitoring, backup/restore, rollback, support coverage, and incident response.
+- M-Pesa remains intentionally disabled; do not present any payment as successful.
+
+MAP PICKER AND LOCATION SEARCH (ADDED AFTER THE 30-ITEM LIST)
+------------------------------------------------------------
+- OpenStreetMap map lets renters tap a search centre and choose a 2 km, 5 km, or 10 km
+  radius; results appear as pins beside the result cards.
+- The listing wizard requires landlords to pin an approximate property location.
+- Public property pins are rounded to three decimal places; radius filtering uses the
+  stored coordinates on the server.
+- Apply the updated `docs/schema.sql` to add the indexed-coordinate search function.
+- OSM attribution is visible; review tile provider usage terms before production scale.
