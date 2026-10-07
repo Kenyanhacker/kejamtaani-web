@@ -16,6 +16,9 @@ WHAT IS IN THE PROJECT NOW
 - Authenticated tenant viewing-request/report flows, landlord request management, saved-search filters, and account data export/privacy request endpoints are implemented.
 - Basic uptime probe exists at `/api/health`; no external monitoring or notification provider is configured.
 - Authenticated tenant and landlord dashboard routes.
+- Protected `/admin` moderation centre for allowlisted, confirmed Google accounts; it requires
+  server-only `ADMIN_EMAILS` and `SUPABASE_SERVICE_ROLE_KEY` configuration and migration 002
+  on databases that already have the earlier schema.
 - Secure-cookie options: production auth cookies are HttpOnly, Secure, SameSite=Lax.
 - Database schema template for profiles, listings, viewing requests, and listing interactions.
 - Signed-in property activity logging, with participant-only row policies and an account rate limit.
@@ -50,8 +53,9 @@ STOP: LAUNCH-BLOCKING ITEMS FOUND IN THE WEBSITE REVIEW
    or tested against the live Supabase project. Back up first, apply the reviewed migration,
    and verify password and Google account acceptance records before launch.
 7. Saved searches do not send email alerts. Viewing requests are stored for the tenant and
-   landlord but do not send email/SMS notifications. Listing reports have no in-app staff
-   queue; authorized staff must review them in Supabase with a documented procedure.
+   landlord but do not send email/SMS notifications. Listing reports, privacy requests, and
+   pending listings have an in-app `/admin` review queue; configure the server secrets,
+   apply migration 002 to existing databases, and test the allowlist and each admin action.
 8. The supplied Supabase project and local auth setup have not been fully production-tested;
    confirm its Google OAuth, production SMTP sender, public domain, monitoring, and backup
    configuration before launch.
@@ -170,8 +174,7 @@ terms can change. Check current provider limits and costs before selecting a pla
 - Live-test database-backed create, owner-isolated dashboard queries, availability updates,
   removal of unpublished listings, and the publication-review trigger.
 - Establish a staffed moderation workflow. The database keeps owner submissions and their
-  photos out of public search until authorized staff approve them; no in-app review queue
-  exists.
+  photos out of public search until authorized staff approve them through `/admin`.
 - Live-test the Supabase Storage bucket, WebP signature/size checks, owner-scoped policies,
   image approval gating, and cleanup on deletion. Do not upload identity documents.
 - Associate WhatsApp, call, view, and viewing-request events with the actual database
@@ -189,7 +192,7 @@ terms can change. Check current provider limits and costs before selecting a pla
   status controls, and cancellation. Add and test email/SMS notification, response timing,
   confirmation, and cancellation messaging before launch.
 - Listing report submissions are stored with tenant-only insert rules and daily limits;
-  build a staffed review queue or document SQL-based report handling.
+  configure the `/admin` queue and staff a person to process incoming reports.
 - The first numbered SQL migration is provided; establish an automated migration runner and
   automated end-to-end/RLS tests before routine production releases.
 - Decide who monitors and answers customer care at 0758 934 463, support hours, and what
@@ -199,7 +202,7 @@ terms can change. Check current provider limits and costs before selecting a pla
 - Keep the disabled M-Pesa endpoint disabled until a separately tested real integration,
   signed callbacks, reconciliation, receipts, and refund/dispute process exist.
 
-MANUAL MODERATION PROCEDURE (UNTIL AN IN-APP QUEUE EXISTS)
+MANUAL MODERATION FALLBACK (IF THE ADMIN SCREEN IS UNAVAILABLE)
 ---------------------------------------------------------
 1. Restrict Supabase project/SQL-editor access to named staff with MFA; never grant
    moderation access to landlords or tenants.

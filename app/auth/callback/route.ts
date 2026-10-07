@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isUserRole } from "@/lib/supabase/roles";
 import { safeInternalRedirect } from "@/lib/safe-redirect";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { isConfiguredAdmin } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -41,6 +42,9 @@ export async function GET(request: NextRequest) {
         });
         if (consentError) throw consentError;
       }
+    }
+    if (isConfiguredAdmin(user)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
     const { data: profile, error: profileError } = await supabase
       .from("profiles")

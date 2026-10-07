@@ -19,9 +19,11 @@ Copy `.env.example` to `.env.local` and configure:
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+ADMIN_EMAILS=jothammasoud@gmail.com
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVER_ONLY_SERVICE_ROLE_SECRET
 ```
 
-The Supabase URL and public key are safe to expose only because database and Storage access is protected by RLS. Never put a service-role key or database password in a `NEXT_PUBLIC_` variable.
+The Supabase URL and publishable/anon key are browser-visible and rely on RLS. `ADMIN_EMAILS` and `SUPABASE_SERVICE_ROLE_KEY` are server-only settings; never use a `NEXT_PUBLIC_` prefix for the service-role key and never commit it.
 
 ## Free launch configuration
 
@@ -39,15 +41,17 @@ The simulated M-Pesa route is intentionally disabled and returns a clear 410 err
 
 Public search reads only published, non-demo Supabase listings. The landlord wizard saves drafts locally, then uploads compressed WebP photos and submits the listing to Supabase for review. Submissions remain private until an administrator approves them; landlords can see their own submissions, change availability to Available, Soon available, or Taken, and remove unpublished listings. Taken listings are excluded from tenant search. Favorites persist on the tenant's device.
 
+The protected `/admin` moderation centre is available only to confirmed Google accounts in the server-only `ADMIN_EMAILS` allowlist. It reviews pending rental submissions and photos, tenant reports, privacy requests, and current published listings. Configure `ADMIN_EMAILS=jothammasoud@gmail.com` and the server-only `SUPABASE_SERVICE_ROLE_KEY` in the deployment host; apply `docs/schema.sql` on a fresh database or both numbered migrations to an existing one before using moderation actions.
+
 Landlords can edit listing details; edits to published listings return them to pending review and unapprove their photos. Landlords can set an expected date for soon-available homes and tenants see availability freshness. Authenticated tenants can submit viewing requests and listing reports, manage saved search filters, export account data, and submit privacy requests. Viewing requests are stored for both account dashboards; notifications are not yet emailed. Saved searches are not alert subscriptions yet.
 
 The search map uses OpenStreetMap with click-to-choose centre and 2 km, 5 km, or 10 km radius filters. Published listings with coordinates appear as map pins; new landlord submissions must include an approximate pin. Pins shown publicly are rounded to reduce location precision. Search proximity is filtered and paginated in the database.
 
 The home page also includes horizontally scrollable home-type shortcuts; property pages distinguish monthly rent from one-time move-in terms. Keja Mtaani uses its own house-and-pin SVG browser icon and generated Apple touch icon.
 
-For a fresh Supabase project, review and apply `docs/schema.sql`. For the already-configured project that has the earlier schema, back it up and review/apply the incremental migration in [`supabase/migrations/202610070001_launch_workflows.sql`](./supabase/migrations/202610070001_launch_workflows.sql) instead of re-running the entire baseline schema. It defines the added policy records, requests, reports, saved searches, availability date, rate limits, and re-review behavior. A staff moderation interface is not included: establish and test an authorized review process before launch.
+For a fresh Supabase project, review and apply `docs/schema.sql`. For an existing project with the earlier schema, back it up and apply [`supabase/migrations/202610070001_launch_workflows.sql`](./supabase/migrations/202610070001_launch_workflows.sql) followed by [`supabase/migrations/202610070002_admin_moderation.sql`](./supabase/migrations/202610070002_admin_moderation.sql). Do not run the baseline schema against an existing database.
 
-The schema also includes policy-acceptance records, saved searches, privacy requests, viewing requests, tenant listing reports, content-edit re-review, rate limits, aggregate metrics, and the `run_retention_cleanup()` maintenance function. Back up and test schema changes on staging before applying them to production. The retention function is not scheduled, only archives eligible old unpublished records, and does not remove Storage blobs or inactive accounts.
+The schema also includes policy-acceptance records, saved searches, privacy requests, viewing requests, tenant listing reports, content-edit re-review, rate limits, aggregate metrics, and the `run_retention_cleanup()` maintenance function. Back up before applying schema changes to a live database. The retention function is not scheduled, only archives eligible old unpublished records, and does not remove Storage blobs or inactive accounts.
 
 The interactive map uses the public OpenStreetMap tile service and displays required attribution. Before a high-traffic production launch, review the OpenStreetMap tile usage policy and select a compliant tile provider if the public service is not suitable.
 
@@ -57,15 +61,15 @@ Email/password and Google auth are handled through server-side Supabase operatio
 
 ## Deployment
 
-Follow [DEPLOYMENT.md](./DEPLOYMENT.md) for the end-to-end Vercel, Supabase, and `.co.ke`
-domain setup. Use [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt) for launch blockers,
+Follow [DEPLOYMENT.md](./DEPLOYMENT.md) for the end-to-end Vercel, Supabase, and
+`kejmtaani.co.ke` setup. Use [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt) for launch blockers,
 security/operations checks, and the detailed smoke-test list.
 
 ## Quick deployment checklist
 
 1. Run `npm ci`, `npm audit`, `npm run typecheck`, and `npm run build`.
 2. Configure Supabase Auth, production email delivery, and Google OAuth redirect URLs.
-3. Back up staging, apply `docs/schema.sql` to a fresh project or the numbered migration to the existing project, and test tenant/landlord RLS, Storage, image approval, moderation, viewing requests, privacy requests, consent audit, and interaction history using separate accounts.
+3. Back up the database; apply `docs/schema.sql` to a fresh project or migrations 001 and 002 in order to an existing project, then test tenant/landlord RLS, Storage, image approval, moderation, viewing requests, privacy requests, consent audit, and interaction history using separate accounts.
 4. Configure `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your host.
 5. Deploy a preview, complete the smoke tests in [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt), then consider production.
 6. Keep `mandatoryPlatformPaymentsEnabled` false until a separately approved payment integration is live.
@@ -77,11 +81,11 @@ The numbered migration provides a first versioned SQL upgrade, but a migration r
 ## Remaining launch work
 
 - Live Supabase, Google OAuth, SMTP, Storage policy, database migration, and recovery-flow testing.
-- Staffed moderation process and verified listing ownership/content; no in-app report/moderation queue exists.
+- Staffed moderation process and verified listing ownership/content; the `/admin` queue now exists but still requires live testing and an on-call reviewer.
 - Legal review and completion of draft `/privacy`, `/terms`, and `/retention` pages; automated retention scheduling, Storage cleanup, inactive-account handling, and actual account deletion remain outstanding.
 - Viewing-request email notifications, production monitoring provider, backups, restore and rollback testing.
 - Saved search filters work, but email alert delivery is not configured.
-- A first numbered migration is provided; an automated migration runner and end-to-end/RLS tests are not configured.
+- Numbered migrations are provided; an automated migration runner and end-to-end/RLS tests are not configured.
 - Live-test map selection/nearby search and comply with the selected map tile provider's usage terms. M-Pesa remains disabled.
 
 The application is **not ready for public launch** until these requirements are configured and verified. The repository contains no live production credentials, so provider-dependent behavior cannot be certified here.

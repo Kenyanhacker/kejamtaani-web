@@ -1,8 +1,9 @@
 # Public deployment guide
 
-This guide is for deploying Keja Mtaani with a `.co.ke` domain, Vercel, and Supabase. It
-assumes you control the domain and Supabase project. Use a staging project before changing a
-production database.
+This guide is for deploying Keja Mtaani with the `kejmtaani.co.ke` domain, Vercel, and Supabase. It
+assumes you control the domain and Supabase project. A separate staging project is
+recommended; if you only have one Supabase project, treat it as production, back it up,
+apply reviewed SQL carefully, and use test accounts before inviting real users.
 
 ## 1. Check the project before deploying
 
@@ -15,14 +16,11 @@ npm run typecheck
 npm run build
 ```
 
-All four commands should complete successfully. The current application expects the latest
-database schema. In particular, the configured Supabase database must have
-`listings.availability_date`; without it, the home page cannot load listings. For a
-database that already has the earlier baseline schema, back it up and review/apply
-[`supabase/migrations/202610070001_launch_workflows.sql`](./supabase/migrations/202610070001_launch_workflows.sql)
-in staging first. For a brand-new project, review/apply [`docs/schema.sql`](./docs/schema.sql)
-instead. Do not run the baseline schema over an existing project as a substitute for its
-migration.
+All four commands should complete successfully. The current application expects the latest database schema. In particular, the configured
+Supabase database must have `listings.availability_date`; without it, the home page cannot
+load listings. For a brand-new project, use [`docs/schema.sql`](./docs/schema.sql) only.
+For an existing project, back it up and apply migrations 001 and 002 in sequence. Never
+run the baseline schema over an existing project as a substitute for migrations.
 
 Before accepting real listings, resolve the STOP items in
 [`HOSTING-CHECKLIST.txt`](./HOSTING-CHECKLIST.txt), including the legal review, real and
@@ -52,20 +50,27 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
 
 1. Create a Supabase project. Choose an available region based on expected user latency,
    legal/privacy requirements, and the plan's backup and recovery features.
-2. Back up the database. Apply the correct reviewed schema from section 1 to a staging
-   project first. Confirm the migration succeeds before applying it to production.
+2. Back up the database. For a new project, run all of [`docs/schema.sql`](./docs/schema.sql)
+   in SQL Editor. For an existing project, apply
+   [`supabase/migrations/202610070001_launch_workflows.sql`](./supabase/migrations/202610070001_launch_workflows.sql)
+   followed by
+   [`supabase/migrations/202610070002_admin_moderation.sql`](./supabase/migrations/202610070002_admin_moderation.sql).
+   Each existing-project migration should run once, in order, against a backed-up database.
 3. Test row-level security with separate unauthenticated, tenant, landlord, and authorized
    staff accounts. Confirm landlords cannot change other landlords' listings, unpublished
    listings and photos stay private, and only authorized staff can publish a listing.
 4. Configure and test the private `listing-photos` Storage bucket and its policies. Do not
    put identity documents or other sensitive files in the listing-photo bucket.
 5. Under Supabase **Authentication → URL Configuration**, set the **Site URL** to the
-   canonical production origin, for example `https://yourname.co.ke`. Add these exact
+   canonical production origin, `https://kejmtaani.co.ke` once the domain is connected.
+   If you must initially use the Vercel URL, use that same origin as the Site URL and
+   allow-list its callback/reset URLs during setup, then switch to the custom domain after
+   HTTPS is active. Add these exact
    production redirect URLs to the allow list:
 
    ```text
-   https://yourname.co.ke/auth/callback
-   https://yourname.co.ke/auth/reset
+   https://kejmtaani.co.ke/auth/callback
+   https://kejmtaani.co.ke/auth/reset
    ```
 
    If you use `www`, decide which hostname is canonical and configure its redirect to that
@@ -79,44 +84,74 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
 7. Configure production email delivery in Supabase Auth. Set and verify the sender domain,
    confirmation/reset email templates, and redirect links. Test signup confirmation and
    password recovery on the production domain.
-8. Copy the project's Supabase URL and publishable/anon key from its API settings. Never
-   use the service-role key in this Next.js app.
+8. Copy the project's URL, publishable/anon key, and server-side service-role secret from
+   its API settings. The service-role key is highly privileged: use it only as Vercel's
+   server-side secret for the protected moderation endpoint. Never put it in browser code,
+   a `NEXT_PUBLIC_` variable, a ticket, or the Git repository.
 
 ## 4. Deploy the app to Vercel
 
 1. Create a Vercel account and import the private Git repository. Select the Next.js
    framework preset; Vercel should detect the build and output settings automatically.
 2. In the Vercel project's **Settings → Environment Variables**, add the following for
-   Production (and Preview too if preview deployments should connect to a separate,
-   non-production Supabase project):
+   Production:
 
    ```text
-   NEXT_PUBLIC_APP_URL=https://yourname.co.ke
+   NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke
    NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+   ADMIN_EMAILS=jothammasoud@gmail.com
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_SECRET
    ```
 
-   Use the canonical HTTPS origin for `NEXT_PUBLIC_APP_URL`, with no trailing slash. Set
-   the production Supabase values only in the Production environment. Do not create a
-   `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` variable.
-3. Deploy a Preview first. Test account creation, confirmation email, Google sign-in,
-   password reset, listing search, map, listing submissions, photo access, and dashboard
-   role separation against the staging Supabase project.
-4. After staging checks pass, apply the reviewed migration to production if applicable,
-   add the Production environment variables, and deploy the intended `main` commit.
-5. Inspect Vercel build/runtime logs and test `https://your-vercel-project.vercel.app/api/health`.
+   Ideally attach the domain and wait for HTTPS before deploying. Set
+   `NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke` (no trailing slash); if you temporarily
+   use the Vercel deployment origin instead, update the Supabase Site URL and callback
+   allowlist to match that origin too.
+   Set all values only in Vercel's Production environment. The `SUPABASE_SERVICE_ROLE_KEY`
+   is a server-only secret: never expose it in the browser, source code, repository, or any
+   variable beginning with `NEXT_PUBLIC_`. `ADMIN_EMAILS` is a comma-separated exact email
+   allowlist. Only confirmed Google accounts on that list can access `/admin`.
+3. If you have no separate staging database, do not point a public Vercel Preview at your
+   production Supabase project for tests that create or modify records. Deploy the intended
+   `main` commit to Production only after reviewing the SQL and checking the domain/auth
+   settings. Use dedicated test accounts and test listings, then remove them when done.
+4. Test account creation, confirmation email, Google sign-in, password reset, listing
+   search, map, listing submission, photo access, admin allowlisting, approve/reject, and
+   dashboard role separation before inviting real users.
+5. Inspect Vercel build/runtime logs and test your deployment's `/api/health`.
    A successful health response checks only that the web app responds; it does not verify
    Supabase, email, or Storage.
 
-## 5. Register and connect the `.co.ke` domain
+## 5. Sign in to and use the admin centre
+
+1. In Supabase Auth, ensure Google sign-in is enabled. Use the Google account
+   `jothammasoud@gmail.com` to sign in to the website; the account must be verified by
+   Google/Supabase and its email must match `ADMIN_EMAILS` exactly.
+2. Visit `https://kejmtaani.co.ke/auth`, continue with Google, and accept the required
+   Terms/Privacy acknowledgement. The OAuth callback should send the configured admin
+   account directly to `https://kejmtaani.co.ke/admin`. Other accounts must not receive
+   admin access.
+3. The admin centre includes pending listing review and private photo previews, open tenant
+   reports, open privacy requests, and a searchable list of published homes. Approval
+   publishes the rental and its approved photos. Rejection archives it and requires an
+   internal reason; neither action deletes the submission.
+4. If `/admin` shows a configuration error, confirm `ADMIN_EMAILS` and
+   `SUPABASE_SERVICE_ROLE_KEY` are set for Vercel Production and that the database schema
+   (including migration 002 for an existing database) is applied. Redeploy after changing
+   Vercel environment variables.
+5. Keep Google account MFA enabled and restrict access to Vercel/Supabase settings. Rotate
+   the Supabase service-role secret immediately if it is accidentally exposed.
+
+## 6. Register and connect the `.co.ke` domain
 
 1. Choose a registrar listed as accredited by the Kenya Network Information Centre
    (KeNIC). Check current `.co.ke` pricing, renewal fees, registration requirements, and
    transfer/renewal rules with that registrar before purchasing. Register a name you have
    rights to use, enable renewal reminders/auto-renew, and secure the registrar account
    with MFA.
-2. In the Vercel project, open **Settings → Domains** and add the chosen domain, for
-   example `yourname.co.ke`. Add `www.yourname.co.ke` too if you want it available, and
+2. In the Vercel project, open **Settings → Domains** and add `kejmtaani.co.ke`. Add
+   `www.kejmtaani.co.ke` too if you want it available, and
    choose one canonical hostname.
 3. Vercel will display the DNS records currently required for that project. At your
    registrar's DNS management page, enter exactly those records for the apex domain and
@@ -128,17 +163,19 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
    have copied all existing DNS records, especially email records.
 5. Wait for DNS propagation. Confirm Vercel marks the domain valid and provisions HTTPS.
    Configure the `www` ↔ apex redirect in Vercel so there is one canonical public URL.
-6. Update `NEXT_PUBLIC_APP_URL` in Vercel to that canonical `https://` URL and redeploy.
+6. Set `NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke` in Vercel and redeploy.
    Update Supabase Auth's Site URL and allowed redirect URLs to match exactly. Re-test
    email confirmation, Google OAuth, password reset, and sign-out on the custom domain.
 
-## 6. Final launch checks and operations
+## 7. Final launch checks and operations
 
 - Complete every applicable item in [`HOSTING-CHECKLIST.txt`](./HOSTING-CHECKLIST.txt).
 - Remove demo/sample listings and replace them only with accurate, consented, verified
   content. Confirm the public site never presents demo details as genuine.
 - Verify the production schema, RLS, storage access, image approval flow, login and
   recovery with separate test accounts before inviting the public.
+- Confirm that `jothammasoud@gmail.com` signs in with Google and lands at
+  `https://kejmtaani.co.ke/admin`; verify an unrelated account receives no admin access.
 - Configure an external uptime check for `/api/health`, error monitoring, backup alerts,
   and an identified person responsible for responding. Test database restore and rollback.
 - Keep M-Pesa and any payment claims disabled unless a real integration is separately

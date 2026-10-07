@@ -158,6 +158,9 @@ CREATE TABLE IF NOT EXISTS listings (
   current_status TEXT NOT NULL DEFAULT 'draft',
   is_demo BOOLEAN NOT NULL DEFAULT false,
   published_at TIMESTAMPTZ,
+  moderation_note TEXT,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -173,6 +176,9 @@ ALTER TABLE listings ADD COLUMN IF NOT EXISTS amenities TEXT[] NOT NULL DEFAULT 
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS deposit_rule TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS tour_url TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS availability_date DATE;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS moderation_note TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE listings ALTER COLUMN is_demo SET DEFAULT false;
 DO $$
 BEGIN
@@ -375,6 +381,45 @@ CREATE TABLE IF NOT EXISTS listing_images (
 ALTER TABLE listing_images ADD COLUMN IF NOT EXISTS storage_path TEXT;
 CREATE INDEX IF NOT EXISTS idx_listing_images_storage_path ON listing_images(storage_path);
 
+CREATE OR REPLACE FUNCTION public.admin_review_listing(
+  target_listing UUID,
+  approve BOOLEAN,
+  moderator UUID,
+  note TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  listing_status TEXT;
+  demo_listing BOOLEAN;
+BEGIN
+  SELECT current_status, is_demo INTO listing_status, demo_listing
+  FROM public.listings WHERE id = target_listing FOR UPDATE;
+  IF NOT FOUND OR listing_status <> 'pending_review' OR demo_listing THEN
+    RAISE EXCEPTION 'listing_not_pending_review';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = moderator) THEN
+    RAISE EXCEPTION 'invalid_moderator';
+  END IF;
+  IF approve THEN
+    UPDATE public.listing_images SET is_approved = true WHERE listing_id = target_listing;
+    UPDATE public.listings SET current_status = 'published', published_at = NOW(),
+      moderation_note = NULLIF(note, ''), reviewed_at = NOW(), reviewed_by = moderator, updated_at = NOW()
+    WHERE id = target_listing;
+  ELSE
+    UPDATE public.listing_images SET is_approved = false WHERE listing_id = target_listing;
+    UPDATE public.listings SET current_status = 'archived',
+      moderation_note = NULLIF(note, ''), reviewed_at = NOW(), reviewed_by = moderator, updated_at = NOW()
+    WHERE id = target_listing;
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_review_listing(UUID, BOOLEAN, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_review_listing(UUID, BOOLEAN, UUID, TEXT) TO service_role;
+
 ALTER TABLE listing_images ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS approved_listing_images_read ON listing_images;
 CREATE POLICY approved_listing_images_read ON listing_images
@@ -516,10 +561,16 @@ CREATE TABLE IF NOT EXISTS listing_reports (
   reason TEXT NOT NULL,
   details TEXT,
   status TEXT NOT NULL DEFAULT 'open',
+  resolution_note TEXT,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE listing_reports ADD COLUMN IF NOT EXISTS reporter_id UUID REFERENCES profiles(id) ON DELETE SET NULL;
 ALTER TABLE listing_reports ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'open';
+ALTER TABLE listing_reports ADD COLUMN IF NOT EXISTS resolution_note TEXT;
+ALTER TABLE listing_reports ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+ALTER TABLE listing_reports ADD COLUMN IF NOT EXISTS reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE listing_reports ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS signed_in_tenant_report_listing ON listing_reports;
 CREATE POLICY signed_in_tenant_report_listing ON listing_reports
@@ -562,8 +613,14 @@ CREATE TABLE IF NOT EXISTS privacy_requests (
   request_type TEXT NOT NULL CHECK (request_type IN ('access', 'correction', 'deletion')),
   details TEXT,
   status TEXT NOT NULL DEFAULT 'open',
+  resolution_note TEXT,
+  resolved_at TIMESTAMPTZ,
+  resolved_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE privacy_requests ADD COLUMN IF NOT EXISTS resolution_note TEXT;
+ALTER TABLE privacy_requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE privacy_requests ADD COLUMN IF NOT EXISTS resolved_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE privacy_requests ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS users_create_own_privacy_requests ON privacy_requests;
 CREATE POLICY users_create_own_privacy_requests ON privacy_requests
