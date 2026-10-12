@@ -62,7 +62,7 @@ Email/password and Google auth are handled through server-side Supabase operatio
 ## Deployment
 
 Follow [DEPLOYMENT.md](./DEPLOYMENT.md) for the end-to-end Vercel, Supabase, and
-`kejmtaani.co.ke` setup. Use [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt) for launch blockers,
+`kejamtaani.co.ke` setup. Use [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt) for launch blockers,
 security/operations checks, and the detailed smoke-test list.
 
 ## Quick deployment checklist
@@ -71,12 +71,12 @@ security/operations checks, and the detailed smoke-test list.
 2. Configure Supabase Auth, production email delivery, and Google OAuth redirect URLs.
 3. Back up the database; apply `docs/schema.sql` to a fresh project or migrations 001 and 002 in order to an existing project, then test tenant/landlord RLS, Storage, image approval, moderation, viewing requests, privacy requests, consent audit, and interaction history using separate accounts.
 4. Configure `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your host.
-5. Deploy a preview, complete the smoke tests in [HOSTING-CHECKLIST.txt](./HOSTING-CHECKLIST.txt), then consider production.
+5. Use a separate Supabase project for Preview tests; otherwise, deploy to Production only after reviewing the database changes and use clearly marked test accounts/listings.
 6. Keep `mandatoryPlatformPaymentsEnabled` false until a separately approved payment integration is live.
 
 ## Improvements delivered
 
-The numbered migration provides a first versioned SQL upgrade, but a migration runner and automated end-to-end/RLS suite are not configured. See [IMPROVEMENTS.txt](./IMPROVEMENTS.txt) for the existing project improvement history.
+Numbered migrations provide versioned SQL upgrades, but a migration runner and automated end-to-end/RLS suite are not configured. See [IMPROVEMENTS.txt](./IMPROVEMENTS.txt) for the existing project improvement history.
 
 ## Remaining launch work
 

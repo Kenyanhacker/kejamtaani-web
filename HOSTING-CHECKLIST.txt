@@ -65,7 +65,7 @@ STOP: LAUNCH-BLOCKING ITEMS FOUND IN THE WEBSITE REVIEW
 
 RECOMMENDED HOSTING SHAPE
 -------------------------
-- Web app: Vercel (connect a Git repository; this workspace is not currently a Git repo).
+- Web app: Vercel, deployed from the connected Git repository.
 - Database and authentication: Supabase project in an appropriate region.
 - Domain/DNS: a domain you control, with HTTPS enabled by the hosting provider.
 - Email: a production transactional SMTP provider configured through Supabase Auth.
@@ -104,10 +104,11 @@ terms can change. Check current provider limits and costs before selecting a pla
 --------------------------------
 1. Create a Supabase project; choose a region appropriate for your users and review its
    privacy, backup, recovery, compute, storage, and billing settings.
-2. Back up the project, then apply reviewed SQL: use `docs/schema.sql` only for a fresh
-   project; use `supabase/migrations/202610070001_launch_workflows.sql` for the existing
-   project that already has the prior baseline schema. Test on staging first and confirm
-   the migration finishes without errors.
+2. For a new Supabase project, apply reviewed `docs/schema.sql` once. For an existing
+   project with the prior baseline, back it up and apply migration 001 followed by
+   migration 002. A separate staging project is recommended; if unavailable, take a
+   backup and carefully test on production using dedicated test accounts before inviting
+   public users.
 3. In Table Editor/API settings, verify Row Level Security is enabled on profiles, listings,
    listing_images, viewing_requests, listing_reports, and listing_interactions.
 4. Create test tenant and landlord accounts. Confirm each receives exactly one profile
@@ -148,7 +149,7 @@ terms can change. Check current provider limits and costs before selecting a pla
 4. CONFIGURE VERCEL AND DOMAIN
 -----------------------------
 1. Put the reviewed source in a private GitHub repository and push the tested branch. The
-   current workspace has no Git repository configured yet.
+   source is deployed from the connected Git repository.
 2. Import that repository into Vercel; use the Next.js framework preset and the default
    install/build commands (`npm ci` and `npm run build`).
 3. In Vercel project settings, add production environment variables:
@@ -159,8 +160,9 @@ terms can change. Check current provider limits and costs before selecting a pla
 
    Add them separately to Preview only if preview redirect URLs and test data are also
    configured. Never expose private provider secrets as NEXT_PUBLIC variables.
-4. Deploy a preview first. Complete all smoke tests below against the preview and test
-   database. Promote to production only after launch blockers are closed.
+4. Prefer a Preview connected to a separate test Supabase project. If none exists, do not
+   run destructive or public-facing tests against real production data; use clearly
+   identified test accounts and listings and remove them after verification.
 5. Add the custom domain in Vercel, configure the exact DNS records it provides, wait for
    HTTPS certificate issuance, and verify apex/www redirects and renewal.
 6. Set NEXT_PUBLIC_APP_URL to the canonical HTTPS URL in Production and redeploy.
@@ -265,7 +267,7 @@ MANUAL MODERATION FALLBACK (IF THE ADMIN SCREEN IS UNAVAILABLE)
      changes, cancellation, rate limits, and contact details are tested.
 [ ] Listing reports are rate-limited, persisted, and reviewed by the designated moderator.
 [ ] Export endpoint returns only the signed-in user’s accessible data under RLS.
-[ ] Scheduled retention, including Storage object removal, has run successfully in staging.
+[ ] Scheduled retention, including Storage object removal, has run successfully in a test environment.
 [ ] External uptime monitoring checks `/api/health` and separate Supabase/email health, and
      alerts reach the named on-call owner.
 [ ] No M-Pesa or deposit flow shows a fake success state; all fees/messages are accurate.
@@ -281,8 +283,10 @@ MANUAL MODERATION FALLBACK (IF THE ADMIN SCREEN IS UNAVAILABLE)
    Kenyan data-protection obligations with qualified counsel.
 3. Run `npm ci`, `npm audit`, `npm run build`, and the complete smoke-test list on the
    exact source commit intended for production.
-4. Deploy to a preview, approve it, then promote. Keep M-Pesa disabled and free-launch
-   settings unchanged unless payment integration receives a separate release approval.
+4. Deploy first to a Preview backed by a separate test database when available. If there
+   is no separate database, deploy only after careful review and smoke-test with dedicated
+   test accounts. Keep M-Pesa disabled and free-launch settings unchanged unless payment
+   integration receives a separate release approval.
 5. Verify production auth, database, domain, email and customer care immediately after
    launch. Watch logs and error/availability alerts for the first day.
 6. Keep a rollback deployment and tested database backups. For schema changes, back up,

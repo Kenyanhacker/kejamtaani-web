@@ -1,6 +1,6 @@
 # Public deployment guide
 
-This guide is for deploying Keja Mtaani with the `kejmtaani.co.ke` domain, Vercel, and Supabase. It
+This guide is for deploying Keja Mtaani with the `kejamtaani.co.ke` domain, Vercel, and Supabase. It
 assumes you control the domain and Supabase project. A separate staging project is
 recommended; if you only have one Supabase project, treat it as production, back it up,
 apply reviewed SQL carefully, and use test accounts before inviting real users.
@@ -26,25 +26,24 @@ Before accepting real listings, resolve the STOP items in
 [`HOSTING-CHECKLIST.txt`](./HOSTING-CHECKLIST.txt), including the legal review, real and
 consented property data, verified contact details, and a staffed moderation process.
 
-## 2. Put the source in a private Git repository
+## 2. Push the updated source to GitHub
 
-This workspace is not currently a Git repository. Create a private GitHub repository (or
-another Git host), then initialize and push the project from PowerShell:
+This project is already connected to a Git repository. From the project root, check and
+push the intended changes:
 
 ```powershell
-git init -b main
 git status --short
-git add .
+git add DEPLOYMENT.md README.md HOSTING-CHECKLIST.txt
 git status --short
-git commit -m "Prepare Keja Mtaani for deployment"
-git remote add origin https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY.git
-git push -u origin main
+git commit -m "Correct production domain and deployment guide"
+git push
 ```
 
-The `.gitignore` excludes `.env*`. Check `git status` before committing and never force-add
-`.env.local`, Supabase service-role keys, database passwords, OAuth secrets, or SMTP
-credentials. Only the public Supabase project URL and publishable/anon key belong in the
-browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the repository.
+If you also have other intended code changes, stage those files explicitly. Before
+committing, inspect the staged changes and ensure `.env.local`, Supabase service-role keys,
+database passwords, OAuth secrets, and SMTP credentials are not included. The `.gitignore`
+excludes `.env*`. Only the public Supabase project URL and publishable/anon key belong in
+browser-visible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the repository.
 
 ## 3. Prepare Supabase
 
@@ -62,15 +61,15 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
 4. Configure and test the private `listing-photos` Storage bucket and its policies. Do not
    put identity documents or other sensitive files in the listing-photo bucket.
 5. Under Supabase **Authentication → URL Configuration**, set the **Site URL** to the
-   canonical production origin, `https://kejmtaani.co.ke` once the domain is connected.
+   canonical production origin, `https://kejamtaani.co.ke` once the domain is connected.
    If you must initially use the Vercel URL, use that same origin as the Site URL and
    allow-list its callback/reset URLs during setup, then switch to the custom domain after
    HTTPS is active. Add these exact
    production redirect URLs to the allow list:
 
    ```text
-   https://kejmtaani.co.ke/auth/callback
-   https://kejmtaani.co.ke/auth/reset
+   https://kejamtaani.co.ke/auth/callback
+   https://kejamtaani.co.ke/auth/reset
    ```
 
    If you use `www`, decide which hostname is canonical and configure its redirect to that
@@ -97,7 +96,7 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
    Production:
 
    ```text
-   NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke
+   NEXT_PUBLIC_APP_URL=https://kejamtaani.co.ke
    NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
    ADMIN_EMAILS=jothammasoud@gmail.com
@@ -105,7 +104,7 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
    ```
 
    Ideally attach the domain and wait for HTTPS before deploying. Set
-   `NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke` (no trailing slash); if you temporarily
+   `NEXT_PUBLIC_APP_URL=https://kejamtaani.co.ke` (no trailing slash); if you temporarily
    use the Vercel deployment origin instead, update the Supabase Site URL and callback
    allowlist to match that origin too.
    Set all values only in Vercel's Production environment. The `SUPABASE_SERVICE_ROLE_KEY`
@@ -128,9 +127,9 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
 1. In Supabase Auth, ensure Google sign-in is enabled. Use the Google account
    `jothammasoud@gmail.com` to sign in to the website; the account must be verified by
    Google/Supabase and its email must match `ADMIN_EMAILS` exactly.
-2. Visit `https://kejmtaani.co.ke/auth`, continue with Google, and accept the required
+2. Visit `https://kejamtaani.co.ke/auth`, continue with Google, and accept the required
    Terms/Privacy acknowledgement. The OAuth callback should send the configured admin
-   account directly to `https://kejmtaani.co.ke/admin`. Other accounts must not receive
+   account directly to `https://kejamtaani.co.ke/admin`. Other accounts must not receive
    admin access.
 3. The admin centre includes pending listing review and private photo previews, open tenant
    reports, open privacy requests, and a searchable list of published homes. Approval
@@ -150,8 +149,8 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
    transfer/renewal rules with that registrar before purchasing. Register a name you have
    rights to use, enable renewal reminders/auto-renew, and secure the registrar account
    with MFA.
-2. In the Vercel project, open **Settings → Domains** and add `kejmtaani.co.ke`. Add
-   `www.kejmtaani.co.ke` too if you want it available, and
+2. In the Vercel project, open **Settings → Domains** and add `kejamtaani.co.ke`. Add
+   `www.kejamtaani.co.ke` too if you want it available, and
    choose one canonical hostname.
 3. Vercel will display the DNS records currently required for that project. At your
    registrar's DNS management page, enter exactly those records for the apex domain and
@@ -163,7 +162,7 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
    have copied all existing DNS records, especially email records.
 5. Wait for DNS propagation. Confirm Vercel marks the domain valid and provisions HTTPS.
    Configure the `www` ↔ apex redirect in Vercel so there is one canonical public URL.
-6. Set `NEXT_PUBLIC_APP_URL=https://kejmtaani.co.ke` in Vercel and redeploy.
+6. Set `NEXT_PUBLIC_APP_URL=https://kejamtaani.co.ke` in Vercel and redeploy.
    Update Supabase Auth's Site URL and allowed redirect URLs to match exactly. Re-test
    email confirmation, Google OAuth, password reset, and sign-out on the custom domain.
 
@@ -175,7 +174,7 @@ browser-accessible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the rep
 - Verify the production schema, RLS, storage access, image approval flow, login and
   recovery with separate test accounts before inviting the public.
 - Confirm that `jothammasoud@gmail.com` signs in with Google and lands at
-  `https://kejmtaani.co.ke/admin`; verify an unrelated account receives no admin access.
+  `https://kejamtaani.co.ke/admin`; verify an unrelated account receives no admin access.
 - Configure an external uptime check for `/api/health`, error monitoring, backup alerts,
   and an identified person responsible for responding. Test database restore and rollback.
 - Keep M-Pesa and any payment claims disabled unless a real integration is separately
