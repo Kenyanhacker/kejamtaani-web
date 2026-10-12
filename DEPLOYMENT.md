@@ -122,6 +122,33 @@ browser-visible `NEXT_PUBLIC_` variables. Keep `package-lock.json` in the reposi
    A successful health response checks only that the web app responds; it does not verify
    Supabase, email, or Storage.
 
+### If the custom domain shows `404 DEPLOYMENT_NOT_FOUND`
+
+The current public check of `https://kejamtaani.co.ke/api/health` returned Vercel's
+`DEPLOYMENT_NOT_FOUND` page, not this application's health response. DNS resolves to
+Vercel, so first fix the Vercel project/deployment assignment rather than changing DNS
+records at random:
+
+1. In Vercel, open the project that imported the `Kenyanhacker/kejamtaani-web` repository.
+   Confirm it has a successful **Production** deployment for the intended branch (usually
+   `main`). A Preview deployment alone does not attach the production domain.
+2. Open that project's **Settings → Domains**. Add `kejamtaani.co.ke` to this exact
+   project, then assign it to the Production environment/current production deployment.
+   Follow any domain verification or DNS correction Vercel itself reports.
+3. If no project has imported this repository, import it first, set the production
+   environment variables, and deploy the production branch. Then attach the domain.
+4. Wait for Vercel to report the domain as configured and HTTPS active. Test both
+   `https://kejamtaani.co.ke/` and `https://kejamtaani.co.ke/api/health` again.
+5. If Vercel reports the domain is already assigned to another project/account, remove it
+   from that project's domain settings (only if you own/control it), then add it to the
+   correct project. Do not delete registrar records unless Vercel's domain panel identifies
+   a specific incorrect/conflicting record.
+
+If the domain starts serving the app but listing search or admin still fails, inspect the
+Vercel Production runtime logs and check the Supabase environment values, schema/migrations,
+and server-only admin secret separately. A successful Next.js build does not validate
+those live integrations.
+
 ## 5. Sign in to and use the admin centre
 
 1. In Supabase Auth, ensure Google sign-in is enabled. Use the Google account
