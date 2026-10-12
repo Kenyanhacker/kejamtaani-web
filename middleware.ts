@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { isMissingAuthSession } from "@/lib/supabase/errors";
 
 export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,7 +32,9 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) console.error("Unable to validate Supabase session.", error.message);
+  if (error && !isMissingAuthSession(error)) {
+    console.error("Unable to validate Supabase session.", error.message);
+  }
   if (isDashboard && (!user || error)) {
     const loginUrl = new URL("/auth", request.url);
     loginUrl.searchParams.set("next", request.nextUrl.pathname);

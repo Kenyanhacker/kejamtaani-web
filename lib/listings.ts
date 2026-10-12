@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { TYPES } from "@/lib/data";
+import { getSupabaseConnectionMessage } from "@/lib/supabase/errors";
 
 export type Listing = {
   id: string;
@@ -234,13 +235,18 @@ export async function searchPublishedListings(filters: ListingFilters = {}): Pro
 
     return { status: "ready", listings, count: count ?? listings.length, neighborhoods };
   } catch (error) {
-    console.error("Unable to search published listings.", error);
+    const connectionMessage = getSupabaseConnectionMessage(error);
+    if (connectionMessage) {
+      console.error("Unable to search published listings.", connectionMessage);
+    } else {
+      console.error("Unable to search published listings.", error);
+    }
     return {
       status: "error",
       listings: [],
       count: 0,
       neighborhoods: [],
-      message: "Listings are temporarily unavailable. Please try again shortly.",
+      message: connectionMessage ?? "Listings are temporarily unavailable. Please try again shortly.",
     };
   }
 }

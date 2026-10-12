@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Heart, PlusCircle, Search, UserRound } from "lucide-react";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { isConfiguredAdmin } from "@/lib/supabase/admin";
+import { isMissingAuthSession } from "@/lib/supabase/errors";
 import SignOutButton from "@/components/SignOutButton";
 
 export default async function SiteNavigation() {
@@ -12,7 +13,9 @@ export default async function SiteNavigation() {
   if (hasSupabaseConfig()) {
     const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) console.error("Unable to load navigation account.", authError);
+    if (authError && !isMissingAuthSession(authError)) {
+      console.error("Unable to load navigation account.", authError.message);
+    }
     signedIn = Boolean(user);
     if (user) {
       isAdmin = isConfiguredAdmin(user);

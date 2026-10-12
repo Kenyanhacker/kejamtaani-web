@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient, isConfiguredAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isMissingAuthSession } from "@/lib/supabase/errors";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -8,7 +9,7 @@ async function requireAdmin() {
   const sessionClient = await createSupabaseServerClient();
   const { data: { user }, error } = await sessionClient.auth.getUser();
   if (error) {
-    if (error.name === "AuthSessionMissingError") {
+    if (isMissingAuthSession(error)) {
       return { response: NextResponse.json({ error: "Sign in with the authorized Google account." }, { status: 401 }) };
     }
     console.error("Unable to verify admin API session.", error.message);

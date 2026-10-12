@@ -149,6 +149,36 @@ Vercel Production runtime logs and check the Supabase environment values, schema
 and server-only admin secret separately. A successful Next.js build does not validate
 those live integrations.
 
+### If local search reports `ENOTFOUND` for Supabase
+
+This means the machine could not resolve the configured Supabase hostname. It is not a
+Next.js build error. I checked the hostname currently configured in this workspace against
+the machine's resolver and independent public DNS resolvers; it did not resolve there.
+Check the current project in Supabase before changing keys or DNS:
+
+1. Open the Supabase project you intend to use and copy its exact **Project URL** from
+   **Connect** or **Project Settings → API**. It must be the URL for that project, not a
+   guessed project reference or a URL copied from an older project.
+2. In the ignored local `.env.local`, set
+   `NEXT_PUBLIC_SUPABASE_URL=https://YOUR_CURRENT_PROJECT_REF.supabase.co` to that exact
+   Project URL and set `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the matching publishable/anon
+   key from the same project. Do not paste either value into public issue comments.
+3. In PowerShell, verify the hostname resolves without printing your key:
+
+   ```powershell
+   $url = Get-Content .env.local | Where-Object { $_ -match '^NEXT_PUBLIC_SUPABASE_URL=' } | Select-Object -First 1
+   $hostName = ([uri]($url -replace '^NEXT_PUBLIC_SUPABASE_URL=', '')).DnsSafeHost
+   Resolve-DnsName $hostName
+   ```
+
+4. Restart `npm run dev` after saving `.env.local`. If the correct Project URL still fails
+   to resolve, test another network or check local DNS/VPN/firewall settings. If Supabase
+   shows that project is paused or deleted, resume it if possible or create a new project
+   and update the URL and key together.
+5. In Vercel, update the Production `NEXT_PUBLIC_SUPABASE_URL` and
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the same project's matching values, then redeploy.
+   Never put the service-role secret in the anon-key variable.
+
 ## 5. Sign in to and use the admin centre
 
 1. In Supabase Auth, ensure Google sign-in is enabled. Use the Google account
