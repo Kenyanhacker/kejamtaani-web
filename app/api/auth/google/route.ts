@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
     const callback = new URL("/auth/callback", appOrigin);
     callback.searchParams.set("role", role);
-    callback.searchParams.set("next", safeNext);
+    if (next !== null) callback.searchParams.set("next", safeNext);
     callback.searchParams.set("acceptedPolicies", "true");
     callback.searchParams.set("marketingOptIn", String(marketingOptIn));
     callback.searchParams.set("termsVersion", TERMS_VERSION);
